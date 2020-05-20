@@ -38,11 +38,11 @@ type Configuration struct {
 type Usecase struct {
 	conf Configuration
 	repo msgrecv.Repository
-	bot  *anonbot.Bot
+	bot  anonbot.AnonBot
 }
 
 // New create message receiver object.
-func New(repo msgrecv.Repository, bot *anonbot.Bot, c Configuration) *Usecase {
+func New(repo msgrecv.Repository, bot anonbot.AnonBot, c Configuration) *Usecase {
 	if c.UpdatesBufferSize == 0 {
 		c.UpdatesBufferSize = c.NumberJobs * defaultUpdatesBufferSize
 	}
@@ -58,8 +58,6 @@ func New(repo msgrecv.Repository, bot *anonbot.Bot, c Configuration) *Usecase {
 func (uc *Usecase) Processing(ctx context.Context) error {
 	up := tgbotapi.NewUpdate(0)
 	up.Timeout = 1
-
-	uc.bot.B.Buffer = uc.conf.NumberJobs
 
 	wg := &sync.WaitGroup{}
 	ch := make(chan tgbotapi.Update, uc.conf.UpdatesBufferSize)
@@ -84,7 +82,7 @@ func (uc *Usecase) Processing(ctx context.Context) error {
 						if errors.Is(err, msgrecv.ErrWrongFormat) {
 							// send error to chat
 							if u.Message != nil && u.Message.Chat != nil {
-								uc.sendStaffMessageWithTitle(
+								uc.bot.SendStaffMessageWithTitle(
 									u.Message.From.LanguageCode,
 									staffErrNotDeliver,
 									staffWrongMessageFormat,
@@ -108,7 +106,7 @@ func (uc *Usecase) Processing(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			// uc.bot.B.StopReceivingUpdates()
+			// uc.bot.StopReceivingUpdates()
 			t.Stop()
 			close(ch)
 			wg.Wait()
@@ -116,7 +114,7 @@ func (uc *Usecase) Processing(ctx context.Context) error {
 			return nil
 
 		case <-t.C:
-			updates, err := uc.bot.B.GetUpdates(up)
+			updates, err := uc.bot.GetUpdates(up)
 			if err != nil {
 				return err
 			}
@@ -184,22 +182,13 @@ func (uc *Usecase) procMessage(m *tgbotapi.Message) error {
 	return nil
 }
 
-func (uc *Usecase) sendStaffMessage(langCode string, text staff, chatID int64) error {
-	msg := tgbotapi.NewMessage(chatID, text.Get(langCode))
-	msg.ParseMode = tgbotapi.ModeMarkdown
-	_, err := uc.bot.B.Send(msg)
+// func (uc *Usecase) sendStaffMessage(langCode string, text staff, chatID int64) error {
+// 	msg := tgbotapi.NewMessage(chatID, text.Get(langCode))
+// 	msg.ParseMode = tgbotapi.ModeMarkdown
+// 	_, err := uc.bot.Send(msg)
 
-	return err
-}
-
-func (uc *Usecase) sendStaffMessageWithTitle(langCode string, errorMessage staff, reason staff, chatID int64) error {
-	text := fmt.Sprintf("*%s*\n\n%s", errorMessage.Get(langCode), reason.Get(langCode))
-	msg := tgbotapi.NewMessage(chatID, text)
-	msg.ParseMode = tgbotapi.ModeMarkdown
-	_, err := uc.bot.B.Send(msg)
-
-	return err
-}
+// 	return err
+// }
 
 func parser(text string) (to, msg string, err error) {
 	parts := strings.SplitN(strings.TrimSpace(text), " ", 2)

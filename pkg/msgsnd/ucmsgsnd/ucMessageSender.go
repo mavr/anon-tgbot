@@ -7,8 +7,6 @@ import (
 	"github.com/mavr/anonymous-mail/pkg/anonbot"
 	"github.com/mavr/anonymous-mail/pkg/msgsnd"
 	"github.com/sirupsen/logrus"
-
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 // Configuration struct
@@ -21,11 +19,11 @@ type Configuration struct {
 type Usecase struct {
 	conf Configuration
 	repo msgsnd.Repository
-	bot  *anonbot.Bot
+	bot  anonbot.AnonBot
 }
 
 // New create message receiver object.
-func New(repo msgsnd.Repository, bot *anonbot.Bot, c Configuration) *Usecase {
+func New(repo msgsnd.Repository, bot anonbot.AnonBot, c Configuration) *Usecase {
 	return &Usecase{
 		conf: c,
 		repo: repo,
@@ -53,11 +51,7 @@ func (uc *Usecase) Processing(ctx context.Context) error {
 				continue
 			}
 
-			msg := tgbotapi.NewMessage(chat.ID, m.Text)
-			_, err = uc.bot.B.Send(msg)
-			if err != nil {
-				return err
-			}
+			return uc.bot.SendMessageWithTitle(chat.LangCode, staffNewMessageTitle, m.Text, chat.ID)
 		}
 
 	}

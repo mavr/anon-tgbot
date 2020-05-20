@@ -8,7 +8,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/mavr/anonymous-mail/pkg/anonbot"
+	"github.com/mavr/anonymous-mail/pkg/anonbot/anonbot"
 	"github.com/mavr/anonymous-mail/pkg/config"
 	"github.com/mavr/anonymous-mail/pkg/msgrecv/ucmsgrecv"
 	"github.com/mavr/anonymous-mail/pkg/msgsnd/ucmsgsnd"
@@ -31,7 +31,7 @@ func main() {
 
 	logConfigure(conf.App.Debug)
 
-	log.Info("Starting backend service for anonymouse telegram mailer")
+	log.Info("Starting backend service for anonymous telegram mailer")
 	log.WithField("api_version", version).WithField("revision", revision).Info("Build version")
 	if conf.App.Debug {
 		log.Info("Running in debug mode")
@@ -74,7 +74,7 @@ func main() {
 
 		return
 	}
-	log.WithField("bot_name", bot.B.Self.UserName).Info("Bot initialization")
+	log.WithField("bot_name", bot.Self().UserName).Info("Bot initialization")
 
 	recv := ucmsgrecv.New(store, bot, ucmsgrecv.Configuration{
 		NumberJobs: 2,

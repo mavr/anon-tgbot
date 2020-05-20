@@ -8,4 +8,5 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.6.0
 	github.com/technoweenie/multipartstreamer v1.0.1 // indirect
+	github.com/vburenin/ifacemaker v1.1.0 // indirect
 )
