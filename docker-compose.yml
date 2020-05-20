@@ -1,0 +1,12 @@
+version: '3.5'
+
+services:
+  anon-mail:
+    build:
+      context: .
+      dockerfile: cmd/anon-mail/Dockerfile
+    volumes:
+      - ./conf/:/app/conf/
+    restart: always
+    # ports:
+    #   - "8010:8010"
