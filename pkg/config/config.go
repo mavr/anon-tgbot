@@ -12,6 +12,7 @@ type Config struct {
 	// Debug set logs level output
 	App struct {
 		Debug bool `toml:"debug"`
+		Port  int  `toml:"port"`
 	}
 
 	// Telegram bot token

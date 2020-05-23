@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/mavr/anonymous-mail/pkg/anonbot/anonbot"
+	"github.com/mavr/anonymous-mail/pkg/apiserver"
 	"github.com/mavr/anonymous-mail/pkg/config"
 	"github.com/mavr/anonymous-mail/pkg/msgrecv/ucmsgrecv"
 	"github.com/mavr/anonymous-mail/pkg/msgsnd/ucmsgsnd"
@@ -68,6 +69,25 @@ func main() {
 		)
 	}
 
+	go func() {
+		wg.Add(1)
+		defer wg.Done()
+
+		apic := apiserver.APIServiceConfig{
+			AppRevision:  revision,
+			AppVersion:   version,
+			AppDebugMode: conf.App.Debug,
+			ServPort:     conf.App.Port,
+		}
+
+		log.WithField("port", conf.App.Port).Info("Start api server")
+		if err := apiserver.NewAPIService(apic).Run(ctx); err != nil {
+			shutdown(errors.Wrap(err, "api server failed"), false)
+		}
+
+		log.Info("Stopped API service")
+	}()
+
 	bot, err := anonbot.New(*conf)
 	if err != nil {
 		log.WithError(err).Error("Failed bot initializing")
@@ -94,7 +114,7 @@ func main() {
 			return
 		}
 
-		log.Info("Bot receive process stoping")
+		log.Info("Stopped Bot receive process")
 	}()
 
 	go func() {
@@ -106,7 +126,7 @@ func main() {
 			return
 		}
 
-		log.Info("Bot sender process stoping")
+		log.Info("Stopped Bot sender process")
 	}()
 
 	sigc := make(chan os.Signal, 1)

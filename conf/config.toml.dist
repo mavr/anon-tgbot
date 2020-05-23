@@ -2,6 +2,7 @@ title = "Anonumouse Telegram mail config"
 
 [app]
 debug = true
+port = 8082
 
 [bot]
 telegram_bot_token = ""
