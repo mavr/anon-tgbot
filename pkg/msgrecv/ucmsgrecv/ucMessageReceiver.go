@@ -14,6 +14,7 @@ import (
 
 	"github.com/mavr/anonymous-mail/models"
 	"github.com/mavr/anonymous-mail/pkg/anonbot"
+	"github.com/mavr/anonymous-mail/pkg/chat"
 	"github.com/mavr/anonymous-mail/pkg/msgrecv"
 )
 
@@ -38,11 +39,14 @@ type Configuration struct {
 type Usecase struct {
 	conf Configuration
 	repo msgrecv.Repository
-	bot  anonbot.AnonBot
+
+	bot anonbot.AnonBot
+
+	chat chat.Usecase
 }
 
 // New create message receiver object.
-func New(repo msgrecv.Repository, bot anonbot.AnonBot, c Configuration) *Usecase {
+func New(repo msgrecv.Repository, bot anonbot.AnonBot, chat chat.Usecase, c Configuration) *Usecase {
 	if c.UpdatesBufferSize == 0 {
 		c.UpdatesBufferSize = c.NumberJobs * defaultUpdatesBufferSize
 	}
@@ -50,54 +54,57 @@ func New(repo msgrecv.Repository, bot anonbot.AnonBot, c Configuration) *Usecase
 	return &Usecase{
 		conf: c,
 		repo: repo,
+		chat: chat,
 		bot:  bot,
 	}
 }
 
 // Processing messages from teleram api.
 func (uc *Usecase) Processing(ctx context.Context) error {
+	if err := uc.chat.RegisterPublisher(); err != nil {
+		return err
+	}
+
 	up := tgbotapi.NewUpdate(0)
 	up.Timeout = 1
 
 	wg := &sync.WaitGroup{}
 	ch := make(chan tgbotapi.Update, uc.conf.UpdatesBufferSize)
+
 	for i := 0; i < uc.conf.NumberJobs; i++ {
 		go func(wg *sync.WaitGroup, ch <-chan tgbotapi.Update) {
 			for u := range ch {
-				func() {
-					wg.Add(1)
-					defer wg.Done()
+				wg.Add(1)
+				defer wg.Done()
 
-					if err := uc.procUpdate(u); err != nil {
-						if uc.conf.Debug {
-							b, _ := json.Marshal(u)
-							fmt.Printf("failed message %s\n", b)
-						}
-						logrus.WithError(err).
-							WithField("update_id", u.UpdateID).
-							Debug("processing update failed")
-
-						err = errors.Unwrap(err)
-
-						if errors.Is(err, msgrecv.ErrWrongFormat) {
-							// send error to chat
-							if u.Message != nil && u.Message.Chat != nil {
-								uc.bot.SendStaffMessageWithTitle(
-									u.Message.From.LanguageCode,
-									staffErrNotDeliver,
-									staffWrongMessageFormat,
-									u.Message.Chat.ID,
-								)
-
-								return
-							}
-
-							logrus.WithField("update_id", u.UpdateID).Debug("notify user failed")
-
-							return
-						}
+				err := uc.procUpdate(u)
+				if err != nil {
+					if uc.conf.Debug {
+						b, _ := json.Marshal(u)
+						fmt.Printf("failed message %s\n", b)
 					}
-				}()
+					logrus.WithError(err).WithField("update_id", u.UpdateID).Debug("processing update failed")
+
+					err = errors.Unwrap(err)
+
+					if errors.Is(err, msgrecv.ErrWrongFormat) {
+						// notificate user about wrong message format
+						if u.Message != nil && u.Message.Chat != nil {
+							uc.bot.SendStaffMessageWithTitle(
+								u.Message.From.LanguageCode,
+								staffErrNotDeliver,
+								staffWrongMessageFormat,
+								u.Message.Chat.ID,
+							)
+
+							continue
+						}
+
+						logrus.WithField("update_id", u.UpdateID).Debug("notify user failed")
+
+						continue
+					}
+				}
 			}
 		}(wg, ch)
 	}
@@ -106,7 +113,6 @@ func (uc *Usecase) Processing(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			// uc.bot.StopReceivingUpdates()
 			t.Stop()
 			close(ch)
 			wg.Wait()
@@ -163,13 +169,6 @@ func (uc *Usecase) procMessage(m *tgbotapi.Message) error {
 		return errors.Wrap(err, "parsing message failed")
 	}
 
-	if err := uc.repo.SetChat(&models.Chat{
-		ID:      m.Chat.ID,
-		UserUID: m.Chat.UserName,
-	}); err != nil {
-		return errors.Wrap(err, "set chat failed")
-	}
-
 	if err = uc.repo.SaveMessage(&models.Message{
 		Text:      msg,
 		To:        to,
@@ -181,14 +180,6 @@ func (uc *Usecase) procMessage(m *tgbotapi.Message) error {
 
 	return nil
 }
-
-// func (uc *Usecase) sendStaffMessage(langCode string, text staff, chatID int64) error {
-// 	msg := tgbotapi.NewMessage(chatID, text.Get(langCode))
-// 	msg.ParseMode = tgbotapi.ModeMarkdown
-// 	_, err := uc.bot.Send(msg)
-
-// 	return err
-// }
 
 func parser(text string) (to, msg string, err error) {
 	parts := strings.SplitN(strings.TrimSpace(text), " ", 2)

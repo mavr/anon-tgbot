@@ -13,11 +13,17 @@ type Config struct {
 	App struct {
 		Debug bool `toml:"debug"`
 		Port  int  `toml:"port"`
+
+		ExchangeNewChat string `toml:"new_chat_notification_exchange"`
 	}
 
 	// Telegram bot token
 	Bot struct {
 		TGBotToken string `toml:"telegram_bot_token"`
+	}
+
+	Rabbit struct {
+		ConnectionString string `toml:"connection_string"`
 	}
 }
 

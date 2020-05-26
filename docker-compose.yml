@@ -8,5 +8,24 @@ services:
     volumes:
       - ./conf/:/app/conf/
     restart: always
-    # ports:
-    #   - "8010:8010"
+    ports:
+      - "8082:8082"
+    networks:
+      - anonmail-network
+      
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: anonmail-rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    networks:
+      - anonmail-network
+
+networks:
+    anonmail-network:
+      name: anonmail-network
+

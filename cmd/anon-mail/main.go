@@ -10,9 +10,11 @@ import (
 
 	"github.com/mavr/anonymous-mail/pkg/anonbot/anonbot"
 	"github.com/mavr/anonymous-mail/pkg/apiserver"
+	"github.com/mavr/anonymous-mail/pkg/chat/ucchat"
 	"github.com/mavr/anonymous-mail/pkg/config"
 	"github.com/mavr/anonymous-mail/pkg/msgrecv/ucmsgrecv"
 	"github.com/mavr/anonymous-mail/pkg/msgsnd/ucmsgsnd"
+	"github.com/mavr/anonymous-mail/pkg/rabbit"
 	"github.com/mavr/anonymous-mail/pkg/storage/local"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -88,6 +90,14 @@ func main() {
 		log.Info("Stopped API service")
 	}()
 
+	rabbitmq := rabbit.New(conf.Rabbit.ConnectionString)
+	ucChat, err := ucchat.New(rabbitmq, store, conf.App.ExchangeNewChat)
+	if err != nil {
+		log.WithError(err).Error("Failed initializing chat module")
+
+		return
+	}
+
 	bot, err := anonbot.New(*conf)
 	if err != nil {
 		log.WithError(err).Error("Failed bot initializing")
@@ -96,12 +106,12 @@ func main() {
 	}
 	log.WithField("bot_name", bot.Self().UserName).Info("Bot initialization")
 
-	recv := ucmsgrecv.New(store, bot, ucmsgrecv.Configuration{
+	recv := ucmsgrecv.New(store, bot, ucChat, ucmsgrecv.Configuration{
 		NumberJobs: 2,
 		Debug:      conf.App.Debug,
 	})
 
-	send := ucmsgsnd.New(store, bot, ucmsgsnd.Configuration{
+	send := ucmsgsnd.New(store, ucChat, bot, ucmsgsnd.Configuration{
 		Jobs: 1,
 	})
 

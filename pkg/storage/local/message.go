@@ -21,6 +21,6 @@ func (s *Store) GetMessage() (*models.Message, error) {
 }
 
 // GetMessageCh return chan message
-func (s *Store) GetMessageCh() chan models.Message {
-	return s.mMessage
+func (s *Store) GetMessageCh() (chan models.Message, error) {
+	return s.mMessage, nil
 }
