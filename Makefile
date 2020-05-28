@@ -37,6 +37,10 @@ test.v:
 run: build
 	$(BINDIRECTORY)/anon-mail
 
+mock.generate: 
+	mockery -name=Usecase -dir=pkg/msgsnd/ -output=pkg/msgsnd/ucmsgsnd/mocks
+	mockery -name=Usecase -dir=pkg/chat/ -output=pkg/chat/ucchat/mocks
+
 docker.run:
 	docker-compose up -d anon-mail
 
