@@ -6,24 +6,24 @@ import (
 	"github.com/mavr/anonymous-mail/pkg/storage/local"
 )
 
-// ChatLocalRepository local storage for messages
-type ChatLocalRepository struct {
+// ChatMongoRepository local storage for messages
+type ChatMongoRepository struct {
 	m *local.Store
 }
 
 // New create local message repository
 func New(s *local.Store) chat.Repository {
-	return &ChatLocalRepository{
+	return &ChatMongoRepository{
 		m: s,
 	}
 }
 
 // SetChat save chat to local repository
-func (r *ChatLocalRepository) SetChat(c *models.Chat) error {
+func (r *ChatMongoRepository) SetChat(c *models.Chat) error {
 	return r.m.SetChat(c)
 }
 
 // GetChat get chat by user uid
-func (r *ChatLocalRepository) GetChat(userUID string) (*models.Chat, error) {
+func (r *ChatMongoRepository) GetChat(userUID string) (*models.Chat, error) {
 	return r.m.GetChat(userUID)
 }
